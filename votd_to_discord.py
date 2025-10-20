@@ -29,22 +29,26 @@ def fetch_votd():
 
     return verse_text, reference, verse_link
 
-
 def post_to_discord(webhook_url, verse_text, reference, verse_link):
-    """Send a clean embedded message to Discord."""
+    """Send a beautifully formatted embedded message to Discord."""
     embed = {
-        "title": f"📖 Verse of the Day — {reference} ({BIBLE_VERSION})",
-        "description": f"_{verse_text}_",
-        "url": verse_link,
-        "color": 0x2ECC71,  # soft green accent
-        "footer": {"text": "Powered by YouVersion Bible App"},
+        "title": f"📖  Verse of the Day — {reference} (AMP)",
+        "description": (
+            f"**{reference} (AMP)**\n\n"
+            f"💬 **{verse_text.strip()}**\n\n"
+            f"[🔗 Read more on Bible.com]({verse_link})"
+        ),
+        "color": 0x3BA55C,  # Discord green
+        "footer": {
+            "text": "Powered by YouVersion Bible App • Automatically posted by verse-bot"
+        },
     }
 
     payload = {"embeds": [embed]}
 
-    r = requests.post(webhook_url, json=payload, timeout=TIMEOUT)
-    r.raise_for_status()
-    return r.status_code
+    response = requests.post(webhook_url, json=payload, timeout=TIMEOUT)
+    response.raise_for_status()
+    return response.status_code
 
 
 if __name__ == "__main__":
@@ -60,4 +64,5 @@ if __name__ == "__main__":
     webhook_url2 = os.environ.get("DISCORD_WEBHOOK_URL_2")
     if webhook_url2:
         post_to_discord(webhook_url2, verse_text, reference, verse_link)
+
 
