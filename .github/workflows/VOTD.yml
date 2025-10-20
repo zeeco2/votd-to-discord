@@ -27,7 +27,4 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_VOTD_WEBHOOK_URL }}
           DISCORD_WEBHOOK_URL_2: ${{ secrets.DISCORD_WEBHOOK_URL_2 }}
-        run: |
-          python votd_to_discord.py
-          export DISCORD_WEBHOOK_URL=$DISCORD_WEBHOOK_URL_2
-          python votd_to_discord.py
+        run: python votd_to_discord.py
