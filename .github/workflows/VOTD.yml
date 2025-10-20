@@ -25,5 +25,5 @@ jobs:
 
       - name: Send Verse of the Day to Discord
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_VOTD_WEBHOOK_URL }}
         run: python votd_to_discord.py
