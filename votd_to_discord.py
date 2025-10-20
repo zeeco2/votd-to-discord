@@ -1,59 +1,63 @@
-import os, re, requests
+import os
+import requests
 from bs4 import BeautifulSoup
 
+# --- CONFIG ---
+BIBLE_VERSION = "AMP"  # Amplified Bible
+BASE_URL = "https://www.bible.com/bible"
 VOTD_URL = "https://www.bible.com/verse-of-the-day"
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 TIMEOUT = 20
 
 def fetch_votd():
-    """
-    Scrapes YouVersion's Verse of the Day page and returns (text, reference, version, link).
-    """
-    headers = {
-        "User-Agent": "Mozilla/5.0 (+https://github.com/yourname/votd-to-discord)"
+    """Scrape YouVersion's Verse of the Day and format it neatly."""
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(VOTD_URL, headers=headers, timeout=TIMEOUT)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # The verse text is usually inside <meta property="og:description">
+    verse_meta = soup.find("meta", property="og:description")
+    verse_text = verse_meta["content"] if verse_meta else "Verse not found."
+
+    # Reference (e.g. Ephesians 2:8-9)
+    ref_meta = soup.find("meta", property="og:title")
+    reference = ref_meta["content"].split("—")[-1].strip() if ref_meta else "Reference unavailable"
+
+    # Build AMP link (YouVersion uses numeric IDs, but we’ll keep to VOTD_URL)
+    verse_link = VOTD_URL
+
+    return verse_text, reference, verse_link
+
+
+def post_to_discord(webhook_url, verse_text, reference, verse_link):
+    """Send a clean embedded message to Discord."""
+    embed = {
+        "title": f"📖 Verse of the Day — {reference} ({BIBLE_VERSION})",
+        "description": f"_{verse_text}_",
+        "url": verse_link,
+        "color": 0x2ECC71,  # soft green accent
+        "footer": {"text": "Powered by YouVersion Bible App"},
     }
-    r = requests.get(VOTD_URL, headers=headers, timeout=TIMEOUT)
+
+    payload = {"embeds": [embed]}
+
+    r = requests.post(webhook_url, json=payload, timeout=TIMEOUT)
     r.raise_for_status()
-    soup = BeautifulSoup(r.text, "html.parser")
+    return r.status_code
 
-    # The page renders the verse text and reference in visible text.
-    # We’ll detect the first long-ish scripture line and a trailing reference like "John 3:16 (NIV)".
-    body_text = " ".join(soup.get_text(" ", strip=True).split())
-
-    # Find a pattern like: "... Ephesians 2:8-9 (NIV)"
-    m = re.search(r"([1-3]?\s?[A-Za-z]+\s\d+:\d+(?:-\d+)?)(?:\s*\(([^)]+)\))", body_text)
-    reference, version = (m.group(1), m.group(2)) if m else ("", "")
-
-    # Heuristic: take the verse text as the sentence(s) immediately preceding the reference
-    verse_text = ""
-    if m:
-        ref_start = m.start()
-        # Look back ~320 chars for verse text then trim to sentence boundary
-        snippet = body_text[max(0, ref_start-320):ref_start].strip()
-        # Clean odd joins like "... boast.Ephesians" etc.
-        verse_text = re.sub(r"\s{2,}", " ", snippet).strip(" .•–—")
-        # If the verse text still includes prior labels, prune common labels
-        verse_text = re.sub(r"(Share\s*)+$", "", verse_text).strip()
-
-    # Fallbacks if heuristic missed:
-    if not verse_text:
-        # Try a simpler capture of the first long clause before the reference
-        verse_text = "Verse of the Day"
-
-    return verse_text, reference, version, VOTD_URL
-
-def post_to_discord(text, reference, version, link):
-    if not DISCORD_WEBHOOK_URL:
-        raise RuntimeError("Missing DISCORD_WEBHOOK_URL environment variable.")
-
-    title = f"📖 Verse of the Day — {reference} {f'({version})' if version else ''}".strip()
-    content = f"**{title}**\n{text}\n\nMore: {link}"
-
-    # Basic message (you can switch to embeds if you like)
-    resp = requests.post(DISCORD_WEBHOOK_URL, json={"content": content}, timeout=TIMEOUT)
-    resp.raise_for_status()
-    return resp.status_code
 
 if __name__ == "__main__":
-    vt, ref, ver, link = fetch_votd()
-    post_to_discord(vt, ref, ver, link)
+    verse_text, reference, verse_link = fetch_votd()
+
+    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if not webhook_url:
+        raise RuntimeError("Missing DISCORD_WEBHOOK_URL environment variable.")
+
+    post_to_discord(webhook_url, verse_text, reference, verse_link)
+
+    # Optional: send to second webhook if configured
+    webhook_url2 = os.environ.get("DISCORD_WEBHOOK_URL_2")
+    if webhook_url2:
+        post_to_discord(webhook_url2, verse_text, reference, verse_link)
+
