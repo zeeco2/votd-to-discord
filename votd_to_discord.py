@@ -36,7 +36,7 @@ def post_to_discord(webhook_url, verse_text, reference, verse_link):
         "title": f"💬 {verse_text.strip()}",
         # 🟢 Reference, translation, and link in the description below
         "description": (
-            f"📖 **{reference} (AMP)**\n\n"
+            f"📖 **{reference} (ESV)**\n\n"
             f"🔗 [Read more on Bible.com]({verse_link})\n"
         ),
         "color": 0x2ECC71,  # calm green accent
@@ -68,6 +68,7 @@ if __name__ == "__main__":
     webhook_url2 = os.environ.get("DISCORD_WEBHOOK_URL_2")
     if webhook_url2:
         post_to_discord(webhook_url2, verse_text, reference, verse_link)
+
 
 
 
